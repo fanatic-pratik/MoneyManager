@@ -3,7 +3,16 @@ const mongoose = require('mongoose');
 const transactionSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    type: { type: String, enum: ['income', 'expense'], required: true },
+    //type: { type: String, enum: ['income', 'expense'], required: true },
+    account_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Account"
+    },
+
+    type: {
+      type: String,
+      enum: ["contribution", "withdrawal", "repayment"]
+    },
     amount: { type: Number, required: true, min: 0 },
     category: { type: String, required: true },
     description: { type: String, trim: true, default: '' },
