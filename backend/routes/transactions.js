@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Transaction = require('../models/Transaction');
 const { protect } = require('../middleware/auth');
+const { addTransaction } = require("../controllers/transactionController");
 
 const router = express.Router();
 
@@ -54,6 +55,8 @@ router.get('/', protect, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+router.post("/add", protect, addTransaction);
 
 // @POST /api/transactions
 router.post(
