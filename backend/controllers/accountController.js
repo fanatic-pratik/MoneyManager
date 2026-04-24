@@ -75,3 +75,50 @@ exports.joinAccount = async (req, res) => {
     res.status(500).json({ msg: err.message });
   }
 };
+
+
+exports.getAccountSummary = async (req, res) => {
+  try {
+    const { account_id } = req.params;
+
+    // 1. Get members
+    const members = await AccountMember.find({ account_id })
+      .populate("user_id", "name email");
+
+    if (!members.length) {
+      return res.status(404).json({ msg: "No members found" });
+    }
+
+    // 2. Calculate total fund
+    let totalFund = 0;
+
+    const memberData = members.map((m) => {
+      const balance = m.total_contributed - m.total_withdrawn;
+      totalFund += balance;
+
+      return {
+        user_id: m.user_id._id,
+        name: m.user_id.name,
+        contributed: m.total_contributed,
+        withdrawn: m.total_withdrawn,
+        balance
+      };
+    });
+
+    // 3. Calculate ownership %
+    const finalData = memberData.map((m) => ({
+      ...m,
+      ownership: totalFund > 0
+        ? ((m.balance / totalFund) * 100).toFixed(2)
+        : 0
+    }));
+
+    res.json({
+      total_fund: totalFund,
+      members: finalData
+    });
+
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
