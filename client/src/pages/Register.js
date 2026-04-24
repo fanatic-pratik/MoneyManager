@@ -26,9 +26,21 @@ export default function Register() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await register(form.name, form.email, form.password);
+      
+      const res = await register(form.name, form.email, form.password);
+
       toast.success('Account created!');
-      navigate('/');
+
+      const accounts = res.accounts || [];
+
+      if (accounts.length === 0) {
+        navigate('/create-account');
+      } else if (accounts.length === 1) {
+        localStorage.setItem("account_id", accounts[0]._id);
+        navigate('/');
+      } else {
+        navigate('/select-account');
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed');
     } finally {

@@ -10,6 +10,21 @@ exports.createAccount = async (req, res) => {
 
     const invite_code = generateCode();
 
+    if (type === "personal") {
+      const existing = await Account.findOne({
+        created_by: req.user.id,
+        type: "personal"
+      });
+
+      if (existing) {
+        return res.status(400).json({
+          msg: "Personal account already exists"
+        });
+      }
+
+      mode = "strict"; // force
+    }
+
     const account = await Account.create({
       account_name,
       created_by: req.user.id,

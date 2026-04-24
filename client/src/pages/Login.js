@@ -24,9 +24,21 @@ export default function Login() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await login(form.email, form.password);
+      const res = await login(form.email, form.password);
+
+      const accounts = res.accounts || [];
+
       toast.success('Welcome back!');
-      navigate('/');
+
+      if (accounts.length === 0) {
+        navigate('/create-account');
+      } else if (accounts.length === 1) {
+        localStorage.setItem("account_id", accounts[0]._id);
+        navigate('/');
+      } else {
+        navigate('/select-account');
+      }
+      
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');
     } finally {

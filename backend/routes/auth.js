@@ -51,7 +51,15 @@ router.post(
       const cats = DEFAULT_CATEGORIES.map((c) => ({ ...c, user: user._id, isDefault: true }));
       await Category.insertMany(cats);
 
-      res.status(201).json({ user, token: generateToken(user._id) });
+      //account creation/selection
+      const AccountMember = require("../models/AccountMember");
+
+      const memberships = await AccountMember.find({ user_id: user._id })
+        .populate("account_id");
+
+      const accounts = memberships.map(m => m.account_id);
+
+      res.status(201).json({ user, token: generateToken(user._id), accounts });
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -75,7 +83,14 @@ router.post(
       if (!user || !(await user.comparePassword(password))) {
         return res.status(401).json({ message: 'Invalid email or password' });
       }
-      res.json({ user, token: generateToken(user._id) });
+      //account creation/selection
+      const AccountMember = require("../models/AccountMember");
+
+      const memberships = await AccountMember.find({ user_id: user._id })
+        .populate("account_id");
+
+      const accounts = memberships.map(m => m.account_id);
+      res.json({ user, token: generateToken(user._id), accounts });
     } catch (err) {
       res.status(500).json({ message: err.message });
     }

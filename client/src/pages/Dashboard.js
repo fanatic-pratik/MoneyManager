@@ -8,6 +8,7 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { formatCurrency, formatShortDate, MONTHS, CHART_COLORS } from '../utils/helpers';
 import TransactionModal from '../components/ui/TransactionModal';
+import SelectAccount from './SelectAccount';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -26,6 +27,12 @@ const StatCard = ({ label, value, change, type, currency }) => (
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const accountId = localStorage.getItem("account_id");
+
+  if (!accountId) {
+    navigate("/select-account");
+  }
+
   const currency = user?.currency || '₹';
   const currentYear = new Date().getFullYear();
 

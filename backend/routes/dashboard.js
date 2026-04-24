@@ -14,11 +14,17 @@ router.get('/summary', protect, async (req, res) => {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
+    const { account_id } = req.query;
+
+    const matchCondition = account_id
+      ? { account_id }
+      : { user: req.user._id };
+
     const [thisMonth, lastMonth, recentTransactions] = await Promise.all([
       Transaction.aggregate([
         {
           $match: {
-            user: req.user._id,
+            ...matchCondition,
             date: { $gte: startOfMonth, $lte: endOfMonth },
           },
         },
@@ -33,7 +39,7 @@ router.get('/summary', protect, async (req, res) => {
       Transaction.aggregate([
         {
           $match: {
-            user: req.user._id,
+            ...matchCondition,
             date: { $gte: startOfLastMonth, $lte: endOfLastMonth },
           },
         },
@@ -47,10 +53,24 @@ router.get('/summary', protect, async (req, res) => {
       Transaction.find({ user: req.user._id }).sort({ date: -1 }).limit(5),
     ]);
 
-    const income = thisMonth.find((x) => x._id === 'income')?.total || 0;
-    const expense = thisMonth.find((x) => x._id === 'expense')?.total || 0;
-    const lastIncome = lastMonth.find((x) => x._id === 'income')?.total || 0;
-    const lastExpense = lastMonth.find((x) => x._id === 'expense')?.total || 0;
+    // const income = thisMonth.find((x) => x._id === 'income')?.total || 0;
+    // const expense = thisMonth.find((x) => x._id === 'expense')?.total || 0;
+    let income = 0;
+    let expense = 0;
+    let lastIncome = 0;
+    let lastExpense = 0;
+
+    if (account_id) {
+      income = thisMonth.find(x => x._id === 'contribution')?.total || 0;
+      expense = thisMonth.find(x => x._id === 'withdrawal')?.total || 0;
+      lastIncome = lastMonth.find((x) => x._id === 'contribution')?.total || 0;
+      lastExpense = lastMonth.find((x) => x._id === 'withdrawal')?.total || 0;
+    } else {
+      income = thisMonth.find(x => x._id === 'income')?.total || 0;
+      expense = thisMonth.find(x => x._id === 'expense')?.total || 0;
+      lastIncome = lastMonth.find((x) => x._id === 'income')?.total || 0;
+      lastExpense = lastMonth.find((x) => x._id === 'expense')?.total || 0;
+    }
 
     res.json({
       income,
@@ -69,15 +89,35 @@ router.get('/summary', protect, async (req, res) => {
 // @GET /api/dashboard/category-breakdown
 router.get('/category-breakdown', protect, async (req, res) => {
   try {
-    const { month = new Date().getMonth() + 1, year = new Date().getFullYear(), type = 'expense' } = req.query;
+    const {
+      month = new Date().getMonth() + 1,
+      year = new Date().getFullYear(),
+      type
+    } = req.query;
+
+    const { account_id } = req.query;
+
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
+
+    const matchCondition = account_id
+      ? { account_id }
+      : { user: req.user._id };
+
+    // 🔥 AUTO TYPE FIX
+    let finalType = type;
+
+    if (account_id) {
+      finalType = type === 'income' ? 'contribution' : 'withdrawal';
+    } else {
+      finalType = type || 'expense';
+    }
 
     const breakdown = await Transaction.aggregate([
       {
         $match: {
-          user: req.user._id,
-          type,
+          ...matchCondition,
+          type: finalType,
           date: { $gte: startDate, $lte: endDate },
         },
       },
@@ -92,14 +132,18 @@ router.get('/category-breakdown', protect, async (req, res) => {
     ]);
 
     const totalAmount = breakdown.reduce((sum, item) => sum + item.total, 0);
-    const result = breakdown.map((item) => ({
-      category: item._id,
-      total: item.total,
-      count: item.count,
-      percentage: totalAmount > 0 ? ((item.total / totalAmount) * 100).toFixed(1) : 0,
-    }));
 
-    res.json(result);
+    res.json(
+      breakdown.map((item) => ({
+        category: item._id,
+        total: item.total,
+        count: item.count,
+        percentage: totalAmount > 0
+          ? ((item.total / totalAmount) * 100).toFixed(1)
+          : 0,
+      }))
+    );
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -109,11 +153,16 @@ router.get('/category-breakdown', protect, async (req, res) => {
 router.get('/monthly-trend', protect, async (req, res) => {
   try {
     const { year = new Date().getFullYear() } = req.query;
+    const { account_id } = req.query;
+
+    const matchCondition = account_id
+      ? { account_id }
+      : { user: req.user._id };
 
     const trend = await Transaction.aggregate([
       {
         $match: {
-          user: req.user._id,
+          ...matchCondition,
           date: {
             $gte: new Date(`${year}-01-01`),
             $lte: new Date(`${year}-12-31`),
@@ -132,14 +181,29 @@ router.get('/monthly-trend', protect, async (req, res) => {
       { $sort: { '_id.month': 1 } },
     ]);
 
-    // Format into array of 12 months
     const months = Array.from({ length: 12 }, (_, i) => {
-      const income = trend.find((t) => t._id.month === i + 1 && t._id.type === 'income')?.total || 0;
-      const expense = trend.find((t) => t._id.month === i + 1 && t._id.type === 'expense')?.total || 0;
-      return { month: i + 1, income, expense, savings: income - expense };
+
+      let income = 0;
+      let expense = 0;
+
+      if (account_id) {
+        income = trend.find(t => t._id.month === i + 1 && t._id.type === 'contribution')?.total || 0;
+        expense = trend.find(t => t._id.month === i + 1 && t._id.type === 'withdrawal')?.total || 0;
+      } else {
+        income = trend.find(t => t._id.month === i + 1 && t._id.type === 'income')?.total || 0;
+        expense = trend.find(t => t._id.month === i + 1 && t._id.type === 'expense')?.total || 0;
+      }
+
+      return {
+        month: i + 1,
+        income,
+        expense,
+        savings: income - expense
+      };
     });
 
     res.json(months);
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -148,6 +212,13 @@ router.get('/monthly-trend', protect, async (req, res) => {
 // @GET /api/dashboard/budget-overview
 router.get('/budget-overview', protect, async (req, res) => {
   try {
+    const { account_id } = req.query;
+
+    // 🔥 SHARED → NO BUDGET
+    if (account_id) {
+      return res.json([]); // or return null
+    }
+
     const { month = new Date().getMonth() + 1, year = new Date().getFullYear() } = req.query;
 
     const budgets = await Budget.find({
@@ -172,7 +243,9 @@ router.get('/budget-overview', protect, async (req, res) => {
           },
           { $group: { _id: null, total: { $sum: '$amount' } } },
         ]);
+
         const spentAmount = spent[0]?.total || 0;
+
         return {
           category: budget.category,
           limit: budget.limit,
@@ -186,6 +259,7 @@ router.get('/budget-overview', protect, async (req, res) => {
     );
 
     res.json(overview);
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Budgets from './pages/Budgets';
 import Categories from './pages/Categories';
+import SelectAccount from './pages/SelectAccount';
+import CreateAccount from './pages/CreateAccount';
 import Settings from './pages/Settings';
 
 const ProtectedRoute = ({ children }) => {
@@ -37,6 +39,8 @@ function AppRoutes() {
         <Route path="transactions" element={<Transactions />} />
         <Route path="budgets" element={<Budgets />} />
         <Route path="categories" element={<Categories />} />
+        <Route path="/select-account" element={<SelectAccount />} />
+        <Route path="/create-account" element={<CreateAccount />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
