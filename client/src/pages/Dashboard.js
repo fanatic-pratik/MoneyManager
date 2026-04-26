@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatCurrency, formatShortDate, MONTHS, CHART_COLORS } from '../utils/helpers';
 import TransactionModal from '../components/ui/TransactionModal';
 import SelectAccount from './SelectAccount';
+import { useAccount } from '../context/AccountContext';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -27,11 +28,18 @@ const StatCard = ({ label, value, change, type, currency }) => (
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const accountId = localStorage.getItem("account_id");
+  const { currentAccount } = useAccount();
+  const accountId = currentAccount?._id;
+  useEffect(() => {
+    if (!accountId) return;
+    fetchAll();
+  }, [accountId]);
 
+  useEffect(() => {
   if (!accountId) {
-    navigate("/select-account");
+    navigate('/select-account');
   }
+}, [accountId, navigate]);
 
   const currency = user?.currency || '₹';
   const currentYear = new Date().getFullYear();
@@ -43,16 +51,25 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  
+
   const fetchAll = async () => {
     setLoading(true);
     try {
       const [s, t, b, bu] = await Promise.all([
-        api.get('/dashboard/summary'),
-        api.get(`/dashboard/monthly-trend?year=${currentYear}`),
-        api.get('/dashboard/category-breakdown'),
-        api.get('/dashboard/budget-overview'),
+        api.get(`/dashboard/summary?account_id=${accountId}`),
+        api.get(`/dashboard/monthly-trend?year=${currentYear}&account_id=${accountId}`),
+        api.get(`/dashboard/category-breakdown?account_id=${accountId}`),
+        api.get(`/dashboard/budget-overview?account_id=${accountId}`)
       ]);
       setSummary(s.data);
+      // setTrend(
+      //   t.data.map((d) => ({
+      //     name: MONTH_ABBR[d.month - 1],
+      //     income: d.income || 0,
+      //     expense: d.expense || 0
+      //   }))
+      // );
       setTrend(t.data.map((d) => ({ ...d, name: MONTH_ABBR[d.month - 1] })));
       setBreakdown(b.data.slice(0, 6));
       setBudgets(bu.data.slice(0, 4));
@@ -63,7 +80,10 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (!accountId) return;
+    fetchAll();
+  }, [accountId]);
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
@@ -85,6 +105,8 @@ export default function Dashboard() {
     );
   };
 
+  const isShared = currentAccount?.type === 'shared';
+
   return (
     <div>
       <div className="page-header">
@@ -101,8 +123,24 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="stats-grid">
-        <StatCard label="Income" value={summary?.income || 0} change={summary?.incomeChange} type="income" currency={currency} />
-        <StatCard label="Expenses" value={summary?.expense || 0} change={summary?.expenseChange} type="expense" currency={currency} />
+        
+        <StatCard
+          label={isShared ? "Contributions" : "Income"}
+          value={summary?.income || 0}
+          change={summary?.incomeChange}
+          type="income"
+          currency={currency}
+        />
+
+        <StatCard
+          label={isShared ? "Withdrawals" : "Expenses"}
+          value={summary?.expense || 0}
+          change={summary?.expenseChange}
+          type="expense"
+          currency={currency}
+        />
+        {/* <StatCard label="Income" value={summary?.income || 0} change={summary?.incomeChange} type="income" currency={currency} />
+        <StatCard label="Expenses" value={summary?.expense || 0} change={summary?.expenseChange} type="expense" currency={currency} /> */}
         <StatCard label="Balance" value={summary?.balance || 0} type="balance" currency={currency} />
         <div className="stat-card">
           <div className="stat-label">Savings Rate</div>
@@ -199,12 +237,13 @@ export default function Dashboard() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {summary.recentTransactions.map((tx) => (
-                <div key={tx._id} className="flex items-center justify-between"
+              {summary.recentTransactions.map((tx) => {
+                const isPositive = ['income', 'contribution', 'repayment'].includes(tx.type);
+                return(<div key={tx._id} className="flex items-center justify-between"
                   style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                   <div className="flex items-center gap-3">
                     <div className="cat-icon" style={{ width: 32, height: 32, fontSize: 15 }}>
-                      {tx.type === 'income' ? '↑' : '↓'}
+                      {isPositive ? '↑' : '↓'}
                     </div>
                     <div>
                       <div style={{ fontSize: 13.5, fontWeight: 500 }}>{tx.category}</div>
@@ -213,12 +252,13 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  <span className={`font-mono ${tx.type === 'income' ? 'amount-income' : 'amount-expense'}`}
-                    style={{ fontSize: 13.5, fontWeight: 500, color: tx.type === 'income' ? 'var(--green)' : 'var(--red)' }}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount, currency)}
+                  <span className={`font-mono ${isPositive  ? 'amount-income' : 'amount-expense'}`}
+                    style={{ fontSize: 13.5, fontWeight: 500, color: isPositive ? 'var(--green)' : 'var(--red)' }}>
+                    {isPositive  ? '+' : '-'}{formatCurrency(tx.amount, currency)}
                   </span>
                 </div>
-              ))}
+              );
+})}
             </div>
           )}
         </div>

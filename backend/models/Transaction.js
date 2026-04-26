@@ -20,7 +20,13 @@ const transactionSchema = new mongoose.Schema(
       required: true
     },
     amount: { type: Number, required: true, min: 0 },
-    category: { type: String, required: true },
+    category: {
+      type: String,
+      required: function () {
+        return !this.account_id; // required ONLY for personal
+      },
+      default: null
+    },
     description: { type: String, trim: true, default: '' },
     date: { type: Date, required: true, default: Date.now },
     tags: [{ type: String, trim: true }],

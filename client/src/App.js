@@ -12,6 +12,7 @@ import Categories from './pages/Categories';
 import SelectAccount from './pages/SelectAccount';
 import CreateAccount from './pages/CreateAccount';
 import Settings from './pages/Settings';
+import { AccountProvider } from './context/AccountContext';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -39,8 +40,8 @@ function AppRoutes() {
         <Route path="transactions" element={<Transactions />} />
         <Route path="budgets" element={<Budgets />} />
         <Route path="categories" element={<Categories />} />
-        <Route path="/select-account" element={<SelectAccount />} />
-        <Route path="/create-account" element={<CreateAccount />} />
+        <Route path="select-account" element={<SelectAccount />} />
+        <Route path="create-account" element={<CreateAccount />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -51,6 +52,7 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
+      <AccountProvider>
       <BrowserRouter>
         <AppRoutes />
         <Toaster
@@ -66,6 +68,7 @@ function App() {
           }}
         />
       </BrowserRouter>
+      </AccountProvider>
     </AuthProvider>
   );
 }

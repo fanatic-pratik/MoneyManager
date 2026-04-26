@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from '../utils/helpers';
 import TransactionModal from '../components/ui/TransactionModal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
+import { useAccount } from '../context/AccountContext';
 
 const SearchIcon = () => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -28,6 +29,9 @@ export default function Transactions() {
   const { user } = useAuth();
   const currency = user?.currency || '₹';
 
+  const [accountId, setAccountId] = useState(null);
+  const [account, setAccount] = useState(null);
+
   const [transactions, setTransactions] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -43,26 +47,74 @@ export default function Transactions() {
   const [editTx, setEditTx] = useState(null);
   const [deleteTx, setDeleteTx] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const { currentAccount } = useAccount();
 
+  useEffect(() => {
+  setFilters({
+    search: '',
+    type: '',
+    category: '',
+    startDate: '',
+    endDate: '',
+  });
+  setPage(1);
+}, [accountId]);
+
+  // 🔥 Load account context
+  // 🔥 Sync with account context (FIXED)
+    useEffect(() => {
+      const id = currentAccount?._id;
+
+      setAccountId(id);
+
+      if (!id) {
+        setAccount(null);
+        return;
+      }
+
+      api.get('/accounts').then(res => {
+        const accs = res.data.map(a => a.account_id);
+        const current = accs.find(a => a._id === id);
+        setAccount(current);
+      });
+
+    }, [currentAccount]); // ✅ IMPORTANT CHANGE
+
+  // Load categories
   useEffect(() => {
     api.get('/categories').then((r) => setCategories(r.data));
   }, []);
 
+  // 🔥 Fetch transactions (ACCOUNT BASED)
   const fetchTransactions = useCallback(async () => {
+    if (!accountId) {
+      setTransactions([]);
+      return;
+    }
+
     setLoading(true);
     try {
-      const params = { page, limit: 15, ...filters };
+      const params = {
+        page,
+        limit: 15,
+        account_id: accountId,
+        ...filters
+      };
+
       Object.keys(params).forEach((k) => { if (!params[k]) delete params[k]; });
+
       const res = await api.get('/transactions', { params });
+
       setTransactions(res.data.transactions);
       setTotal(res.data.total);
       setTotalPages(res.data.totalPages);
-    } catch (e) {
+
+    } catch {
       toast.error('Failed to load transactions');
     } finally {
       setLoading(false);
     }
-  }, [page, filters]);
+  }, [page, filters, accountId]);
 
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
@@ -85,7 +137,13 @@ export default function Transactions() {
     }
   };
 
-  const PAYMENT_LABELS = { cash: 'Cash', card: 'Card', upi: 'UPI', netbanking: 'Net Banking', other: 'Other' };
+  const PAYMENT_LABELS = {
+    cash: 'Cash',
+    card: 'Card',
+    upi: 'UPI',
+    netbanking: 'Net Banking',
+    other: 'Other'
+  };
 
   return (
     <div>
@@ -94,128 +152,156 @@ export default function Transactions() {
           <div className="page-title">Transactions</div>
           <div className="page-subtitle">{total} total records</div>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditTx(null); setShowModal(true); }}>
+
+        <button
+          className="btn btn-primary"
+          onClick={() => { setEditTx(null); setShowModal(true); }}
+        >
           + Add Transaction
         </button>
       </div>
 
-      {/* Filter bar */}
+      {/* 🔥 FILTER BAR */}
       <div className="filter-bar">
         <div className="search-input-wrap">
           <SearchIcon />
-          <input className="form-input" placeholder="Search transactions..."
-            value={filters.search} onChange={(e) => handleFilterChange('search', e.target.value)} />
+          <input
+            className="form-input"
+            placeholder="Search..."
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
         </div>
 
-        <select className="form-select" style={{ width: 130 }} value={filters.type}
-          onChange={(e) => handleFilterChange('type', e.target.value)}>
+        {/* 🔥 TYPE FILTER */}
+        <select
+          className="form-select"
+          style={{ width: 150 }}
+          value={filters.type}
+          onChange={(e) => handleFilterChange('type', e.target.value)}
+        >
           <option value="">All Types</option>
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
+
+          {account?.type === "personal" && (
+            <>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </>
+          )}
+
+          {account?.type === "shared" && (
+            <>
+              <option value="contribution">Contribution</option>
+              <option value="withdrawal">Withdrawal</option>
+              <option value="repayment">Repayment</option>
+            </>
+          )}
         </select>
 
-        <select className="form-select" style={{ width: 160 }} value={filters.category}
-          onChange={(e) => handleFilterChange('category', e.target.value)}>
-          <option value="">All Categories</option>
-          {categories.map((c) => <option key={c._id} value={c.name}>{c.name}</option>)}
-        </select>
-
-        <input type="date" className="form-input" style={{ width: 150 }}
-          value={filters.startDate} onChange={(e) => handleFilterChange('startDate', e.target.value)} />
-        <input type="date" className="form-input" style={{ width: 150 }}
-          value={filters.endDate} onChange={(e) => handleFilterChange('endDate', e.target.value)} />
-
-        {(filters.search || filters.type || filters.category || filters.startDate || filters.endDate) && (
-          <button className="btn btn-ghost btn-sm" onClick={() => {
-            setFilters({ search: '', type: '', category: '', startDate: '', endDate: '' });
-            setPage(1);
-          }}>Clear</button>
+        {/* 🔥 CATEGORY ONLY FOR PERSONAL */}
+        {account?.type === "personal" && (
+          <select
+            className="form-select"
+            style={{ width: 160 }}
+            value={filters.category}
+            onChange={(e) => handleFilterChange('category', e.target.value)}
+          >
+            <option value="">All Categories</option>
+            {categories.map((c) => (
+              <option key={c._id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
         )}
+
+        <input
+          type="date"
+          className="form-input"
+          style={{ width: 150 }}
+          value={filters.startDate}
+          onChange={(e) => handleFilterChange('startDate', e.target.value)}
+        />
+
+        <input
+          type="date"
+          className="form-input"
+          style={{ width: 150 }}
+          value={filters.endDate}
+          onChange={(e) => handleFilterChange('endDate', e.target.value)}
+        />
       </div>
 
       <div className="card" style={{ padding: 0 }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-            <div className="spinner" style={{ width: 24, height: 24 }} />
+            <div className="spinner" />
           </div>
         ) : transactions.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">💸</div>
-            <div className="empty-state-title">No transactions found</div>
-            <div className="empty-state-text">Try adjusting your filters or add a new transaction</div>
+            <div>No transactions</div>
           </div>
         ) : (
-          <>
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Category</th>
-                    <th>Description</th>
-                    <th>Payment</th>
-                    <th>Tags</th>
-                    <th style={{ textAlign: 'right' }}>Amount</th>
-                    <th style={{ width: 80 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((tx) => (
-                    <tr key={tx._id}>
-                      <td style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>
-                        {formatDate(tx.date, 'dd MMM yyyy')}
-                      </td>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <span className={`badge ${tx.type === 'income' ? 'badge-income' : 'badge-expense'}`} style={{ fontSize: 11 }}>
-                            {tx.type === 'income' ? '↑' : '↓'}
-                          </span>
-                          <span style={{ fontSize: 13.5, fontWeight: 450 }}>{tx.category}</span>
-                        </div>
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{tx.description || '—'}</td>
-                      <td style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{PAYMENT_LABELS[tx.paymentMethod] || '—'}</td>
-                      <td>
-                        <div className="flex gap-1" style={{ flexWrap: 'wrap' }}>
-                          {(tx.tags || []).slice(0, 2).map((tag) => (
-                            <span key={tag} className="badge badge-neutral" style={{ fontSize: 11 }}>{tag}</span>
-                          ))}
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <span className={`font-mono ${tx.type === 'income' ? 'amount-income' : 'amount-expense'}`}>
-                          {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount, currency)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="flex gap-1">
-                          <button className="btn-icon" onClick={() => { setEditTx(tx); setShowModal(true); }}><EditIcon /></button>
-                          <button className="btn-icon" style={{ color: 'var(--red)' }} onClick={() => setDeleteTx(tx)}><TrashIcon /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th style={{ textAlign: 'right' }}>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
 
-            <div className="pagination">
-              <span>Showing {(page - 1) * 15 + 1}–{Math.min(page * 15, total)} of {total}</span>
-              <div className="pagination-btns">
-                <button className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
-                <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
-              </div>
-            </div>
-          </>
+            <tbody>
+              {transactions.map((tx) => {
+                const isPositive = ["income", "contribution", "repayment"].includes(tx.type);
+
+                return (
+                  <tr key={tx._id}>
+                    <td>{formatDate(tx.date, 'dd MMM yyyy')}</td>
+
+                    <td>{tx.description || '—'}</td>
+
+                    <td>
+                      <span className={`badge ${isPositive ? 'badge-income' : 'badge-expense'}`}>
+                        {tx.type}
+                      </span>
+                    </td>
+
+                    <td style={{ textAlign: 'right' }}>
+                      <span className={isPositive ? 'amount-income' : 'amount-expense'}>
+                        {isPositive ? '+' : '-'}{formatCurrency(tx.amount, currency)}
+                      </span>
+                    </td>
+
+                    <td>
+                      <button onClick={() => { setEditTx(tx); setShowModal(true); }}>
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
-      <TransactionModal isOpen={showModal} onClose={() => { setShowModal(false); setEditTx(null); }}
-        onSaved={fetchTransactions} transaction={editTx} />
+      <TransactionModal
+        isOpen={showModal}
+        onClose={() => { setShowModal(false); setEditTx(null); }}
+        onSaved={fetchTransactions}
+        transaction={editTx}
+      />
 
-      <ConfirmDialog isOpen={!!deleteTx} onClose={() => setDeleteTx(null)} onConfirm={handleDelete}
-        title="Delete Transaction" loading={deleteLoading}
-        message={`Delete this ${deleteTx?.type} of ${formatCurrency(deleteTx?.amount || 0, currency)} from ${deleteTx?.category}? This cannot be undone.`} />
+      <ConfirmDialog
+        isOpen={!!deleteTx}
+        onClose={() => setDeleteTx(null)}
+        onConfirm={handleDelete}
+        title="Delete Transaction"
+        loading={deleteLoading}
+        message="Are you sure?"
+      />
     </div>
   );
 }

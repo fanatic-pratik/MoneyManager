@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getInitials } from '../../utils/helpers';
+import { useAccount } from '../../context/AccountContext';
 
 const NavItem = ({ to, icon, label }) => (
   <NavLink
@@ -56,12 +57,33 @@ export default function AppShell() {
     navigate('/login');
   };
 
+  const { accounts, currentAccount, switchAccount } = useAccount();
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">₹</div>
           <span className="sidebar-logo-text">MoneyManager</span>
+        </div>
+        <div style={{ padding: '0 12px', marginBottom: 12 }}>
+          <select
+            className="form-input"
+            value={currentAccount?._id || ""}
+            onChange={(e) => switchAccount(e.target.value)}
+            style={{
+              width: '100%',
+              fontSize: '13px',
+              padding: '6px 8px',
+              borderRadius: '6px'
+            }}
+          >
+            {accounts.map(acc => (
+              <option key={acc._id} value={acc._id}>
+                {acc.account_name} ({acc.type})
+              </option>
+            ))}
+          </select>
         </div>
 
         <nav className="sidebar-nav">

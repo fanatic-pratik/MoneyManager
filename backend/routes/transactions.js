@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const Transaction = require('../models/Transaction');
 const { protect } = require('../middleware/auth');
 const { addTransaction } = require("../controllers/transactionController");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -19,9 +20,17 @@ router.get('/', protect, async (req, res) => {
       search,
       sortBy = 'date',
       sortOrder = 'desc',
+      account_id,
     } = req.query;
 
-    const filter = { user: req.user._id };
+    //const filter = { user: req.user._id };
+    let filter = {};
+
+    if (account_id) {
+      filter.account_id = new mongoose.Types.ObjectId(account_id);
+    } else {
+      filter.user = req.user.id;
+    }
     if (type) filter.type = type;
     if (category) filter.category = category;
     if (startDate || endDate) {
@@ -32,8 +41,7 @@ router.get('/', protect, async (req, res) => {
     if (search) {
       filter.$or = [
         { description: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } },
+        { notes: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -63,9 +71,14 @@ router.post(
   '/',
   protect,
   [
-    body('type').isIn(['income', 'expense']).withMessage('Type must be income or expense'),
+    body('type').isIn(['income', 'expense', 'contribution', 'withdrawal', 'repayment']).withMessage('Type must be income or expense'),
     body('amount').isNumeric().isFloat({ min: 0 }).withMessage('Amount must be positive'),
-    body('category').notEmpty().withMessage('Category is required'),
+    body('category').custom((value, { req }) => {
+      if (!req.body.account_id && !value) {
+        throw new Error('Category is required');
+      }
+      return true;
+    }),
     body('date').optional().isISO8601().withMessage('Invalid date'),
   ],
   async (req, res) => {
