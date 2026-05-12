@@ -15,7 +15,7 @@ const getMatch = (req) => {
   const { account_id } = req.query;
 
   if (account_id && mongoose.Types.ObjectId.isValid(account_id)) {
-    return { account_id: new mongoose.Types.ObjectId(account_id) };
+    return { account_id: new mongoose.Types.ObjectId(account_id), user: { $exists: true } };
   }
 
   return { user: req.user._id };
@@ -43,7 +43,7 @@ router.get('/summary', protect, async (req, res) => {
         { $match: { ...matchCondition, date: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
         { $group: { _id: '$type', total: { $sum: '$amount' } } }
       ]),
-      Transaction.find(matchCondition).sort({ date: -1 }).limit(5),
+      Transaction.find(matchCondition).populate('user', 'name').sort({ date: -1 }).limit(5),
     ]);
 
     const { account_id } = req.query;
@@ -133,7 +133,7 @@ router.get('/category-breakdown', protect, async (req, res) => {
       },
       {
         $group: {
-          _id: '$category',
+          _id: { $ifNull: ['$category', '$type'] },
           total: { $sum: '$amount' },
           count: { $sum: 1 },
         },

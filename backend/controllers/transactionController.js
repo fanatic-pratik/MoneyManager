@@ -46,9 +46,22 @@ exports.addTransaction = async (req, res) => {
 
       else if (type === "withdrawal") {
 
-        if (account.mode === "strict" && amount > balance) {
+        if (
+          account.mode === "strict" &&
+          member.total_contributed <= 0
+        ) {
           return res.status(400).json({
-            msg: "Insufficient balance"
+            msg: "You must contribute before withdrawal"
+          });
+        }
+
+        // 🚫 Cannot exceed own balance
+        if (
+          account.mode === "strict" &&
+          amount > balance
+        ) {
+          return res.status(400).json({
+            msg: `Available balance: ₹${balance}`
           });
         }
 

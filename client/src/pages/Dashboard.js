@@ -362,6 +362,12 @@ export default function Dashboard() {
                       <div style={{ fontSize: 13.5, fontWeight: 500 }}>{tx.category}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                         {tx.description || formatShortDate(tx.date)}
+                        {isShared && tx.user?.name && (
+                          <>
+                            {' • '}
+                            By {tx.user.name}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

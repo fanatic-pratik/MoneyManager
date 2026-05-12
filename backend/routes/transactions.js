@@ -49,7 +49,7 @@ router.get('/', protect, async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const [transactions, total] = await Promise.all([
-      Transaction.find(filter).sort(sort).skip(skip).limit(parseInt(limit)),
+      Transaction.find(filter).sort(sort).skip(skip).limit(parseInt(limit)).populate('user', 'name'),
       Transaction.countDocuments(filter),
     ]);
 

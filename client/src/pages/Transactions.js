@@ -264,7 +264,23 @@ export default function Transactions() {
                   <tr key={tx._id}>
                     <td>{formatDate(tx.date, 'dd MMM yyyy')}</td>
 
-                    <td>{tx.description || '—'}</td>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>
+                        {tx.description || '—'}
+                      </div>
+
+                      {account?.type === 'shared' && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: 'var(--text-muted)',
+                            marginTop: 2
+                          }}
+                        >
+                          By {tx.user?.name || 'Unknown'}
+                        </div>
+                      )}
+                    </td>
 
                     <td>
                       <span className={`badge ${isPositive ? 'badge-income' : 'badge-expense'}`}>

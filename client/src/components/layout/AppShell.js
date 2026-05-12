@@ -59,6 +59,12 @@ export default function AppShell() {
 
   const { accounts, currentAccount, switchAccount } = useAccount();
 
+  const selectedAccount = accounts.find(
+    acc => acc._id === currentAccount?._id
+  );
+
+  const isShared = selectedAccount?.type === 'shared';
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -66,6 +72,7 @@ export default function AppShell() {
           <div className="sidebar-logo-icon">₹</div>
           <span className="sidebar-logo-text">MoneyManager</span>
         </div>
+        
         <div style={{ padding: '0 12px', marginBottom: 12 }}>
           <select
             className="form-input"
@@ -85,15 +92,22 @@ export default function AppShell() {
             ))}
           </select>
         </div>
+        <div style={{ color: 'white' }}>
+  {selectedAccount?.type}
+</div>
 
         <nav className="sidebar-nav">
           <span className="nav-section-label">Overview</span>
           <NavItem to="/" icon={<GridIcon />} label="Dashboard" />
           <NavItem to="/transactions" icon={<ArrowsIcon />} label="Transactions" />
 
+          {!isShared && (
+          <>
           <span className="nav-section-label">Planning</span>
           <NavItem to="/budgets" icon={<TargetIcon />} label="Budgets" />
           <NavItem to="/categories" icon={<TagIcon />} label="Categories" />
+          </>
+          )}
 
           <span className="nav-section-label">Account</span>
           <NavItem to="/settings" icon={<GearIcon />} label="Settings" />
