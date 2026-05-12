@@ -15,11 +15,13 @@ export const AccountProvider = ({ children }) => {
       setAccounts(accs);
 
       const stored = localStorage.getItem("account_id");
-      const selected = accs.find(a => a._id === stored) || accs[0];
 
-      if (selected) {
-        setCurrentAccount(selected);
-        localStorage.setItem("account_id", selected._id);
+      if (stored) {
+        const selected = accs.find(a => a._id === stored);
+
+        if (selected) {
+          setCurrentAccount(selected);
+        }
       }
     };
 
@@ -27,9 +29,16 @@ export const AccountProvider = ({ children }) => {
   }, []);
 
   const switchAccount = (id) => {
-    const selected = accounts.find(a => a._id === id);
-    setCurrentAccount(selected);
+    // const selected = accounts.find(a => a._id === id);
+    // setCurrentAccount(selected);
+    // localStorage.setItem("account_id", id);
     localStorage.setItem("account_id", id);
+
+    const selected = accounts.find(a => a._id === id);
+
+    if (selected) {
+      setCurrentAccount(selected);
+    }
   };
 
   return (

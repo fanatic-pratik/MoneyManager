@@ -226,14 +226,13 @@ router.get('/monthly-trend', protect, async (req, res) => {
 // ==============================
 router.get('/budget-overview', protect, async (req, res) => {
   try {
-    if (req.query.account_id) {
-      return res.json([]);
-    }
 
     const { month = new Date().getMonth() + 1, year = new Date().getFullYear() } = req.query;
+    const { account_id } = req.query;
 
     const budgets = await Budget.find({
       user: req.user._id,
+      account_id,
       month: parseInt(month),
       year: parseInt(year),
     });
@@ -247,6 +246,7 @@ router.get('/budget-overview', protect, async (req, res) => {
           {
             $match: {
               user: req.user._id,
+              account_id: budget.account_id,
               type: 'expense',
               category: budget.category,
               date: { $gte: startDate, $lte: endDate },

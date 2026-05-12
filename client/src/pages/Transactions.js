@@ -29,8 +29,12 @@ export default function Transactions() {
   const { user } = useAuth();
   const currency = user?.currency || '₹';
 
-  const [accountId, setAccountId] = useState(null);
-  const [account, setAccount] = useState(null);
+  // const [accountId, setAccountId] = useState(null);
+  // const [account, setAccount] = useState(null);
+  
+  const { currentAccount } = useAccount();
+  const accountId = currentAccount?._id;
+  const account = currentAccount;
 
   const [transactions, setTransactions] = useState([]);
   const [total, setTotal] = useState(0);
@@ -47,7 +51,7 @@ export default function Transactions() {
   const [editTx, setEditTx] = useState(null);
   const [deleteTx, setDeleteTx] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const { currentAccount } = useAccount();
+  
 
   useEffect(() => {
   setFilters({
@@ -62,23 +66,23 @@ export default function Transactions() {
 
   // 🔥 Load account context
   // 🔥 Sync with account context (FIXED)
-    useEffect(() => {
-      const id = currentAccount?._id;
+    // useEffect(() => {
+    //   const id = currentAccount?._id;
 
-      setAccountId(id);
+    //   setAccountId(id);
 
-      if (!id) {
-        setAccount(null);
-        return;
-      }
+    //   if (!id) {
+    //     setAccount(null);
+    //     return;
+    //   }
 
-      api.get('/accounts').then(res => {
-        const accs = res.data.map(a => a.account_id);
-        const current = accs.find(a => a._id === id);
-        setAccount(current);
-      });
+    //   api.get('/accounts').then(res => {
+    //     const accs = res.data.map(a => a.account_id);
+    //     const current = accs.find(a => a._id === id);
+    //     setAccount(current);
+    //   });
 
-    }, [currentAccount]); // ✅ IMPORTANT CHANGE
+    // }, [currentAccount]); // ✅ IMPORTANT CHANGE
 
   // Load categories
   useEffect(() => {

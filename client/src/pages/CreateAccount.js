@@ -47,7 +47,12 @@ export default function CreateAccount() {
 
       localStorage.setItem("account_id", res.data._id);
 
-      toast.success("Account created!");
+      //toast.success("Account created!");
+      if (type === 'shared') {
+        toast.success(`Invite Code: ${res.data.invite_code}`);
+      } else {
+        toast.success("Account created!");
+      }
       navigate('/');
 
     } catch (err) {
@@ -121,6 +126,13 @@ export default function CreateAccount() {
           style={{ marginTop: 12 }}
         >
           {loading ? <span className="spinner" /> : "Create Account"}
+        </button>
+
+        <button
+          className="btn btn-secondary w-full"
+          onClick={() => navigate('/join-account')}
+        >
+          Join Shared Account
         </button>
 
       </div>

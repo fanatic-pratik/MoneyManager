@@ -11,6 +11,7 @@ import Budgets from './pages/Budgets';
 import Categories from './pages/Categories';
 import SelectAccount from './pages/SelectAccount';
 import CreateAccount from './pages/CreateAccount';
+import JoinAccount from './pages/JoinAccount';
 import Settings from './pages/Settings';
 import { AccountProvider } from './context/AccountContext';
 
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="categories" element={<Categories />} />
         <Route path="select-account" element={<SelectAccount />} />
         <Route path="create-account" element={<CreateAccount />} />
+        <Route path="join-account" element={<JoinAccount />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

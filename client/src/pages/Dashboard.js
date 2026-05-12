@@ -10,6 +10,7 @@ import { formatCurrency, formatShortDate, MONTHS, CHART_COLORS } from '../utils/
 import TransactionModal from '../components/ui/TransactionModal';
 import SelectAccount from './SelectAccount';
 import { useAccount } from '../context/AccountContext';
+import toast from 'react-hot-toast';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -44,6 +45,10 @@ export default function Dashboard() {
   const currency = user?.currency || '₹';
   const currentYear = new Date().getFullYear();
 
+  const isShared = currentAccount?.type === 'shared';
+
+  const isOwner = currentAccount?.created_by?.toString() === user?._id;
+
   const [summary, setSummary] = useState(null);
   const [trend, setTrend] = useState([]);
   const [breakdown, setBreakdown] = useState([]);
@@ -53,26 +58,76 @@ export default function Dashboard() {
 
   
 
+  // const fetchAll = async () => {
+  //   setLoading(true);
+  //   try {
+  //     const [s, t, b, bu] = await Promise.all([
+  //       api.get(`/dashboard/summary?account_id=${accountId}`),
+  //       api.get(`/dashboard/monthly-trend?year=${currentYear}&account_id=${accountId}`),
+  //       api.get(`/dashboard/category-breakdown?account_id=${accountId}`),
+  //       api.get(`/dashboard/budget-overview?account_id=${accountId}`)
+  //     ]);
+  //     setSummary(s.data);
+  //     setTrend(t.data.map((d) => ({ ...d, name: MONTH_ABBR[d.month - 1] })));
+  //     setBreakdown(b.data.slice(0, 6));
+  //     setBudgets(bu.data.slice(0, 4));
+  //   } catch (e) {
+  //     console.error(e);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
   const fetchAll = async () => {
+    if (!accountId) return;
+
     setLoading(true);
+
     try {
-      const [s, t, b, bu] = await Promise.all([
+
+      const requests = [
         api.get(`/dashboard/summary?account_id=${accountId}`),
-        api.get(`/dashboard/monthly-trend?year=${currentYear}&account_id=${accountId}`),
-        api.get(`/dashboard/category-breakdown?account_id=${accountId}`),
-        api.get(`/dashboard/budget-overview?account_id=${accountId}`)
-      ]);
-      setSummary(s.data);
-      // setTrend(
-      //   t.data.map((d) => ({
-      //     name: MONTH_ABBR[d.month - 1],
-      //     income: d.income || 0,
-      //     expense: d.expense || 0
-      //   }))
-      // );
-      setTrend(t.data.map((d) => ({ ...d, name: MONTH_ABBR[d.month - 1] })));
-      setBreakdown(b.data.slice(0, 6));
-      setBudgets(bu.data.slice(0, 4));
+
+        api.get(
+          `/dashboard/monthly-trend?year=${currentYear}&account_id=${accountId}`
+        ),
+
+        api.get(
+          `/dashboard/category-breakdown?account_id=${accountId}`
+        )
+      ];
+
+      // ✅ Only fetch budgets for personal accounts
+      if (!isShared) {
+        requests.push(
+          api.get(`/dashboard/budget-overview?account_id=${accountId}`)
+        );
+      }
+
+      const responses = await Promise.all(requests);
+
+      const summaryRes = responses[0];
+      const trendRes = responses[1];
+      const breakdownRes = responses[2];
+      const budgetRes = responses[3];
+
+      setSummary(summaryRes.data);
+
+      setTrend(
+        trendRes.data.map((d) => ({
+          ...d,
+          name: MONTH_ABBR[d.month - 1]
+        }))
+      );
+
+      setBreakdown(breakdownRes.data.slice(0, 6));
+
+      // ✅ Personal only
+      if (!isShared && budgetRes) {
+        setBudgets(budgetRes.data.slice(0, 4));
+      } else {
+        setBudgets([]);
+      }
+
     } catch (e) {
       console.error(e);
     } finally {
@@ -105,7 +160,7 @@ export default function Dashboard() {
     );
   };
 
-  const isShared = currentAccount?.type === 'shared';
+  
 
   return (
     <div>
@@ -120,6 +175,64 @@ export default function Dashboard() {
           + Add Transaction
         </button>
       </div>
+
+      {isShared && isOwner && (
+      <div
+        className="card"
+        style={{
+          marginBottom: 20,
+          border: '1px dashed var(--primary)',
+          background: 'rgba(99,102,241,0.04)'
+        }}
+      >
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+
+          <div>
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-muted)',
+                marginBottom: 6
+              }}
+            >
+              Invite Members
+            </div>
+
+            <div
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                letterSpacing: 2
+              }}
+            >
+              {currentAccount?.invite_code}
+            </div>
+          </div>
+
+          <button
+            className="btn btn-outline"
+            onClick={() => {
+              navigator.clipboard.writeText(
+                currentAccount?.invite_code
+              );
+
+              toast.success('Invite code copied');
+            }}
+          >
+            Copy Code
+          </button>
+
+        </div>
+
+      </div>
+    )}
 
       {/* Stats */}
       <div className="stats-grid">
@@ -263,7 +376,9 @@ export default function Dashboard() {
           )}
         </div>
 
+        
         {/* Budget overview */}
+        {!isShared && (
         <div className="card">
           <div className="flex justify-between items-center mb-4">
             <span className="font-semibold" style={{ fontSize: 14 }}>Budget Overview</span>
@@ -299,6 +414,7 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <TransactionModal isOpen={showModal} onClose={() => setShowModal(false)} onSaved={fetchAll} />

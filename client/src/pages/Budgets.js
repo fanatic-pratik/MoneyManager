@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { formatCurrency, MONTHS } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { useAccount } from '../context/AccountContext';
+
+
 
 const XIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -21,6 +24,10 @@ export default function Budgets() {
   const { user } = useAuth();
   const currency = user?.currency || '₹';
   const now = new Date();
+  const { currentAccount } = useAccount();
+  const accountId = currentAccount?._id;
+
+  const isShared = currentAccount?.type === 'shared';
 
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -37,7 +44,10 @@ export default function Budgets() {
   const fetchBudgets = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/budgets?month=${month}&year=${year}`);
+      
+      const res = await api.get(
+        `/budgets?month=${month}&year=${year}&account_id=${accountId}`
+      );
       setBudgets(res.data);
     } catch { toast.error('Failed to load budgets'); }
     finally { setLoading(false); }
@@ -47,7 +57,10 @@ export default function Budgets() {
     api.get('/categories?type=expense').then((r) => setCategories(r.data));
   }, []);
 
-  useEffect(() => { fetchBudgets(); }, [month, year]);
+  useEffect(() => { 
+    if (!accountId) return;
+    fetchBudgets(); 
+  }, [month, year]);
 
   const validate = () => {
     const e = {};
@@ -62,7 +75,7 @@ export default function Budgets() {
     if (!validate()) return;
     setSaving(true);
     try {
-      await api.post('/budgets', { ...form, limit: Number(form.limit), month, year });
+      await api.post('/budgets', { ...form, limit: Number(form.limit), month, year, account_id: accountId });
       toast.success('Budget saved');
       setShowForm(false);
       setForm({ category: '', limit: '', alertThreshold: 80 });
@@ -86,6 +99,18 @@ export default function Budgets() {
   const totalBudget = budgets.reduce((s, b) => s + b.limit, 0);
   const totalSpent = budgets.reduce((s, b) => s + b.spent, 0);
 
+  if(isShared){
+    return (
+    <div className="card">
+      <div className="empty-state">
+        <div className="empty-state-icon">👥</div>
+        <div className="empty-state-title">
+          Budgets are only available for personal accounts
+        </div>
+      </div>
+    </div>
+  );
+  }else{
   return (
     <div>
       <div className="page-header">
@@ -238,4 +263,5 @@ export default function Budgets() {
         message={`Remove the budget for "${deleteBudget?.category}"? Existing transactions won't be affected.`} />
     </div>
   );
+}
 }

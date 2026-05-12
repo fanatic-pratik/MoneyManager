@@ -10,8 +10,11 @@ router.get('/', protect, async (req, res) => {
   try {
     const { month = new Date().getMonth() + 1, year = new Date().getFullYear() } = req.query;
 
+    const { account_id } = req.query;
+
     const budgets = await Budget.find({
       user: req.user._id,
+      account_id,
       month: parseInt(month),
       year: parseInt(year),
     });
@@ -26,6 +29,7 @@ router.get('/', protect, async (req, res) => {
           {
             $match: {
               user: req.user._id,
+              account_id: budget.account_id,
               type: 'expense',
               category: budget.category,
               date: { $gte: startDate, $lte: endDate },
@@ -51,12 +55,12 @@ router.get('/', protect, async (req, res) => {
 // @POST /api/budgets
 router.post('/', protect, async (req, res) => {
   try {
-    const { category, limit, month, year, alertThreshold } = req.body;
+    const { category, limit, month, year, alertThreshold, account_id } = req.body;
 
     // Upsert: update if exists
     const budget = await Budget.findOneAndUpdate(
-      { user: req.user._id, category, month, year },
-      { limit, alertThreshold },
+      { user: req.user._id, account_id, category, month, year },
+      { limit, alertThreshold, account_id },
       { new: true, upsert: true, runValidators: true }
     );
 

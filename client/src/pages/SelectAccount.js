@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useAccount } from '../context/AccountContext';
 
 export default function SelectAccount() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
+
+  const { switchAccount } = useAccount();
 
   useEffect(() => {
     api.get('/accounts')
@@ -20,7 +23,7 @@ export default function SelectAccount() {
   }, []);
 
   const selectAccount = (id) => {
-    localStorage.setItem("account_id", id);
+    switchAccount(id);
     toast.success("Account selected");
     navigate('/');
   };
@@ -97,6 +100,13 @@ export default function SelectAccount() {
               onClick={() => navigate('/create-account')}
             >
               + Create New Account
+            </button>
+
+            <button
+              className="btn btn-secondary w-full"
+              onClick={() => navigate('/join-account')}
+            >
+              Join Shared Account
             </button>
 
           </div>

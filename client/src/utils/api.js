@@ -16,9 +16,18 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const currentPath = window.location.pathname;
+
+    if (
+      err.response?.status === 401 &&
+      currentPath !== '/login' &&
+      currentPath !== '/register'
+    ) {
       localStorage.removeItem('mm_token');
-      window.location.href = '/login';
+      localStorage.removeItem('account_id');
+
+      // ✅ prevent infinite reload loop
+      window.location.replace('/login');
     }
     return Promise.reject(err);
   }
